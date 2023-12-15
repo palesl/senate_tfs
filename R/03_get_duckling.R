@@ -15,7 +15,7 @@ duckling <- function(x, ref_datetime) {
 
     ref <- paste0(format(as.integer(ref_datetime) * 1000, scientific = FALSE))
 
-    sys_call_pre <- "curl -XPOST http://0.0.0.0:8000/parse --data "
+    sys_call_pre <- "curl -XPOST http://0.0.0.0:8008/parse --data "
 
     ### if we shQuote, it wraps in single quotes, which we don't want
     x <- shQuote(paste0("locale=en_GB&text=",

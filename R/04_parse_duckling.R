@@ -129,8 +129,8 @@ for (f in infiles) {
         duckling_file <- sub("/debates/","/duckling/", f, fixed = TRUE)
         if (!file.exists(duckling_file)) {
             main <- main |>
-                dplyr::select(speaker, person, date,
-                              heading, oral_heading,
+                dplyr::select(person, date,
+                              oral_heading,
                               speech_id, docid, newtext = sents) |>
                 as.data.frame()
         } else { 
@@ -142,8 +142,8 @@ for (f in infiles) {
                 mutate(listcol = map(json, parse_json)) 
 
             main <- left_join(main, duckling,
-                              by = join_by(speaker, person, date,
-                                           heading, oral_heading,
+                              by = join_by(person, date,
+                                           oral_heading,
                                            speech_id, docid))
 
             the_date <- sub(".*debates", "", f)
@@ -158,8 +158,8 @@ for (f in infiles) {
                                           date = the_date))
             
             main <- main |>
-                dplyr::select(speaker, person, date,
-                              heading, oral_heading,
+                dplyr::select(person, date,
+                              oral_heading,
                               speech_id, docid, newtext) |>
                 as.data.frame()
         }
