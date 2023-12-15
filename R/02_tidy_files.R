@@ -35,7 +35,7 @@ tidy_file <- function(file, overwrite = FALSE, debug = FALSE) {
     require(lubridate)
   
 
-    outfile <- sub("debates", "working", file)
+    outfile <- sub("debates", "working/debates", file)
     outfile <- sub(".parquet", ".rds", outfile, fixed = TRUE)
 
 ### if overwrite is false, and the file exists
@@ -108,12 +108,12 @@ tidy_file <- function(file, overwrite = FALSE, debug = FALSE) {
     ## four words => three boundaries
     dat <- dat |>
         mutate(nboundaries = str_count(sents, boundary("word"))) |>
-        filter(nboundaries >= 3)    
+        filter(nboundaries > 3)    
 
 ### select the columns we want
     dat <- dat |>
-        dplyr::select(speaker, person, date,
-                      heading, oral_heading, speech_id,
+        dplyr::select(person, date,
+                      speech_id, oral_heading, 
                       sents) |>
         as.data.frame()
     
@@ -135,18 +135,10 @@ tidy_file <- function(file, overwrite = FALSE, debug = FALSE) {
 }
 
 
-infiles <- sort(list.files(here::here("scrapedxml/debates/"),
+infiles <- sort(list.files(here::here("debates"),
                            full.names = TRUE))
 length(infiles)
 
-### ParlParse will occasionally store duplicates of date entries
-### Pick the last of each date (i.e., if we have a, b, and c, pick c
-date <- sub("scrapedxml/debates//debates", "", infiles, fixed = TRUE)
-date <- gsub("[a-z]", "", date)
-
-infiles <- by(infiles, list(date = date), FUN = tail, n = 1)
-infiles <- unlist(unique(infiles))
-length(infiles)
 
 ### Shuffle the files
 infiles <- sample(infiles, length(infiles), replace = FALSE)

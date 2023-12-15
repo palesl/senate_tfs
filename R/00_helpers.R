@@ -1,5 +1,5 @@
 handle_date <- function(x) {
-  x <- sub("debates/senate_", "", x, fixed = TRUE)
+  x <- sub(".*senate_", "", x )
   x <- sub(".parquet", "", x, fixed = TRUE)
   x <- substr(x, 0, 10)
   as.Date(x, format = "%Y-%m-%d")
@@ -7,7 +7,7 @@ handle_date <- function(x) {
 
 
 handle_hansard80 <- function(dat, date) {
-  if (date < as.Date(1981-01-01)) {
+  if (date < as.Date("1981-01-01")) {
     x<-dat
     x$speech_id<-dat$`Author Id`
     x$`System Id`<-dat$`Author Id`
@@ -20,8 +20,16 @@ handle_hansard80 <- function(dat, date) {
   x
 }
 
-handle_speech_id <- function(ns) {
-  retval <- dat$speech_id
+handle_speech_id <- function(dat) {
+  
+  if(suppressWarnings(is.null(dat$speech_id))){
+    retval <- dat$`System Id`
+  }
+  
+  if(suppressWarnings(!is.null(dat$speech_id))){
+    retval <- dat$speech_id
+  }
+  
   if (length(retval) == 0) {
     retval <- NA_character_
   }
