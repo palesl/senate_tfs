@@ -14,11 +14,15 @@ parse_file <- function(i) {
     ### Aggregate to speaker/topic/da
     retval <- read_parquet(i) |>
         mutate(date = the_date) |>
-        mutate(speaker = as.character(speaker),
-               person = as.character(person),
+        ### accounting for debates on 2007-09-19 which did not have an oral heading.
+        mutate(oral_heading = as.character(oral_heading),
+               oral_heading = case_when(is.na(oral_heading) ~ "_NA_Character_",
+                                        !is.na(oral_heading) ~ oral_heading)
+               ) |>
+        mutate(person = as.character(person),
                nchars = nchar(newtext)) |>
-        group_by(speaker, person, date,
-                 heading, oral_heading) |>
+        group_by(person, date,
+                 oral_heading) |>
         summarize(Present = weighted.mean(Present, nchars, na.rm = TRUE),
                   Past = weighted.mean(Past, nchars, na.rm = TRUE),
                   Future = weighted.mean(Future, nchars, na.rm = TRUE),
@@ -41,7 +45,6 @@ Sys.time()
 
 stopCluster(cl)
 
-dat$speaker <- factor(dat$speaker)
 dat$person <- factor(dat$person)
 dat <- as.data.frame(dat)
 

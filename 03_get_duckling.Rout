@@ -1,0 +1,135 @@
+
+R version 4.3.2 (2023-10-31) -- "Eye Holes"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: aarch64-apple-darwin20 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> ### PURPOSE OF THIS CODE: to read in the sentences and pass them to duckling, which will return a JSON file
+> 
+> ### Load libraries
+> library(tidyverse)
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.4.4     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.0
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+> library(jsonlite)
+
+Attaching package: ‘jsonlite’
+
+The following object is masked _by_ ‘.GlobalEnv’:
+
+    parse_json
+
+The following object is masked from ‘package:purrr’:
+
+    flatten
+
+> 
+> here::i_am("R/03_get_duckling.R")
+here() starts at /Users/pat/Library/CloudStorage/Dropbox/politicians temporal focus/Programming/senate_tfs
+> 
+> ### Make sure there's a duckling server running on port 8000
+> duckling <- function(x, ref_datetime) {
++     if (!inherits(ref_datetime, "POSIXct")) {
++         stop("ref_datetime must have class POSIXct")
++     }
++ 
++ 
++     ref <- paste0(format(as.integer(ref_datetime) * 1000, scientific = FALSE))
++ 
++     sys_call_pre <- "curl -XPOST http://0.0.0.0:8008/parse --data "
++ 
++     ### if we shQuote, it wraps in single quotes, which we don't want
++     x <- shQuote(paste0("locale=en_GB&text=",
++                         x,
++                         "&dims=[\"time\"]&reftime=",
++                         ref
++                         ))
++ 
++     syscall <- paste0(sys_call_pre,
++                       x)
++     
++     retval <- system(syscall,
++            intern = TRUE,
++            ignore.stdout = FALSE,
++            ignore.stderr = TRUE)
++     
++     if ("status" %in% names(attributes(retval))) {
++         warning(syscall)
++         retval <- "[]"
++     }
++     
++     retval <- paste(retval, collapse = "\n")
++     return(retval)
++ }
+> 
+> handle_file <- function(f) {
++     require(tidyverse)
++     outfile <- sub("working/debates/", "working/duckling/", f, fixed = TRUE)
++     if (file.exists(outfile)) {
++         return(TRUE)
++     }
++ 
++     ref_date <- sub(".*debates", "", f)
++     ref_date <- gsub("[^0-9]", "", ref_date)
++     ref_datetime <- paste0(ref_date, " 11:59")
++     ref_datetime <- as.POSIXct(ref_datetime,
++                                format = "%Y%m%d %H:%M")
++     if (is.na(ref_datetime)) {
++         stop("No valid reference date supplied")
++     }
++     
++     dat <- readRDS(f)
++     dat <- dat |>
++         mutate(json = map_chr(sents, duckling, ref_datetime)) |>
++         dplyr::select(-sents)
++ ###
++     saveRDS(dat, outfile)
++     return(TRUE)
++ }
+> 
+> infiles <- list.files(here::here("working/debates/"),
++                       pattern = "senate.*.rds",
++                       full.names = TRUE)
+> 
+> ### shuffle
+> infiles <- sample(infiles, size = length(infiles), replace = FALSE)
+> 
+> ### 10 files = 137seconds single-threaded
+> ### 20 files = 44 seconds 20-threaded
+> 
+> ### This is definitely an overnight-and-next-morning job; there are
+> ### one or two files that choke the duckling handlers
+> 
+> library(parallel)
+> cl <- makeCluster(20)
+> clusterExport(cl, "duckling")
+> system.time(res <- parLapply(cl, infiles, handle_file))
+   user  system elapsed 
+  0.003   0.001   1.306 
+> stopCluster(cl)
+> 
+> proc.time()
+   user  system elapsed 
+ 10.467   0.275  12.339 

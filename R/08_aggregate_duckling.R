@@ -93,8 +93,8 @@ parse_file <- function(f) {
 ### Aggregate to speaker by nchars
     dat <- dat |>
         mutate(date = ref_date) |>
-        group_by(speaker, person, date,
-                 heading, oral_heading) |>
+        group_by(person, date,
+                 oral_heading) |>
         summarize(ltr = sum(ltr, na.rm = TRUE),
                   nchars = sum(nchars, na.rm = TRUE),
                   .groups = "drop") |>
@@ -119,7 +119,6 @@ dat <- foreach(i=infiles,.combine = 'bind_rows') %dopar% {
 
 stopCluster(cl)
 
-dat$speaker <- factor(dat$speaker)
 dat$person <- factor(dat$person)
 dat <- as.data.frame(dat)
 

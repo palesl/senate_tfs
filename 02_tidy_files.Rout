@@ -1,0 +1,598 @@
+
+R version 4.3.2 (2023-10-31) -- "Eye Holes"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: aarch64-apple-darwin20 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> ### PURPOSE OF THIS CODE: to take in the XML from the ParlParse
+> ### project, and turn this into R data frames which include
+> ### information on the speaker, the member, the date, the heading, and
+> ### what they actually said
+> 
+> ### Load libraries
+> library(tidyverse)
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.4.4     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.0
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+> library(tidytext)
+> library(rvest)
+
+Attaching package: ‘rvest’
+
+The following object is masked from ‘package:readr’:
+
+    guess_encoding
+
+> library(parallel)
+> library(xml2)
+> library(furrr)
+Loading required package: future
+> library(jsonlite)
+
+Attaching package: ‘jsonlite’
+
+The following object is masked _by_ ‘.GlobalEnv’:
+
+    parse_json
+
+The following object is masked from ‘package:purrr’:
+
+    flatten
+
+> 
+> num_cores_to_use <- 20
+> 
+> here::i_am("R/02_tidy_files.R")
+here() starts at /Users/pat/Library/CloudStorage/Dropbox/politicians temporal focus/Programming/senate_tfs
+> 
+> ### Get in helper functions
+> source(here::here("R", "00_helpers.R"), echo = FALSE)
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> tidy_file <- function(file, overwrite = FALSE, debug = FALSE) {
++     require(tidyverse)
++     require(tidytext)
++     require(stringr)
++     require(rvest)
++     require(xml2)
++     require(arrow)
++     require(lubridate)
++   
++ 
++     outfile <- sub("debates", "working/debates", file)
++     outfile <- sub(".parquet", ".rds", outfile, fixed = TRUE)
++ 
++ ### if overwrite is false, and the file exists
++     if (!overwrite) { 
++         if (file.exists(outfile)) return(TRUE)
++     }
++     
++     raw <- read_parquet(file)
++     
++ ### handle formatting issue for texts before 1981    
++     
++     
++     date <- handle_date(file)
++     
++     
++     raw <- handle_hansard80(raw, date)
++     
++ 
++ ### extract data
++     
++     oral_heading <- get_major_heading(raw)
++ 
++     speech_id <- handle_speech_id(raw)
++  
++     person <- handle_person(raw, date)
++     
++     is_president <- person == handle_current_president(date)
++     
++     words <- handle_words(raw)
++     
++     dat <- data.frame(person = person,
++                       oral_heading = oral_heading,
++                       speech_id = speech_id,
++                       is_president = is_president,
++                       date = date,
++                       words = words,
++                       row.names = NULL) |>
++       filter(!is_president) |>
++       filter(!is.na(is_president) | !is.na(is_president)) |>
++       dplyr::select(-is_president)
++     
++     
++ ### Tokenize on sentence
++     dat <- dat |>
++         unnest_tokens(sents, words,
++                       "sentences",
++                       to_lower = FALSE,
++                       drop = TRUE)
++ 
++     ### Remove sentences without letters (i.e., purely numeric or punctuation)
++     dat <- dat |>
++         filter(grepl("[A-Za-z]", sents))
++ 
++ ### Omit sentences which begin and end with square brackets
++     dat <- dat |>
++         filter(!(grepl("^\\[", sents) & grepl("\\[$", sents)))
++     
++ ### Replace references to Act [YYYY] with Act_[YYYY]
++     dat <- dat |>
++         mutate(sents = stringi::stri_replace_all_regex(sents,
++                                                        "Act [0-9]{4}",
++                                                        replacement = "Act"))
++ 
++     dat <- dat |>
++         mutate(sents = stringi::stri_replace_all_regex(sents,
++                                                        "esolution [0-9]{4}",
++                                                        replacement = "esolution"))
++ 
++ ### We want sentences that have at least four words.
++     ## four words => three boundaries
++     dat <- dat |>
++         mutate(nboundaries = str_count(sents, boundary("word"))) |>
++         filter(nboundaries > 3)    
++ 
++ ### select the columns we want
++     dat <- dat |>
++         dplyr::select(person, date,
++                       speech_id, oral_heading, 
++                       sents) |>
++         as.data.frame()
++     
++     if (nrow(dat) == 0) {
++         warning(paste0("No speeches in file ", file))
++         return(FALSE)
++     }
++     
++     if (debug) {
++         print(dat |>
++               sample_n(10) |>
++               pull(sents))
++     } else { 
++         dat <- dat |>
++             mutate(docid = seq_len(n()))
++         saveRDS(dat, outfile)
++     }
++     return(TRUE)
++ }
+> 
+> 
+> infiles <- sort(list.files(here::here("debates"),
++                            full.names = TRUE))
+> length(infiles)
+[1] 3084
+> 
+> 
+> ### Shuffle the files
+> infiles <- sample(infiles, length(infiles), replace = FALSE)
+> 
+>             
+> ## ## # Initiate cluster
+> cl <- makeCluster(num_cores_to_use)
+> clusterEvalQ(cl, library(jsonlite))
+[[1]]
+[1] "jsonlite"  "stats"     "graphics"  "grDevices" "utils"     "datasets" 
+[7] "methods"   "base"     
+
+[[2]]
+[1] "jsonlite"  "stats"     "graphics"  "grDevices" "utils"     "datasets" 
+[7] "methods"   "base"     
+
+[[3]]
+[1] "jsonlite"  "stats"     "graphics"  "grDevices" "utils"     "datasets" 
+[7] "methods"   "base"     
+
+[[4]]
+[1] "jsonlite"  "stats"     "graphics"  "grDevices" "utils"     "datasets" 
+[7] "methods"   "base"     
+
+[[5]]
+[1] "jsonlite"  "stats"     "graphics"  "grDevices" "utils"     "datasets" 
+[7] "methods"   "base"     
+
+[[6]]
+[1] "jsonlite"  "stats"     "graphics"  "grDevices" "utils"     "datasets" 
+[7] "methods"   "base"     
+
+[[7]]
+[1] "jsonlite"  "stats"     "graphics"  "grDevices" "utils"     "datasets" 
+[7] "methods"   "base"     
+
+[[8]]
+[1] "jsonlite"  "stats"     "graphics"  "grDevices" "utils"     "datasets" 
+[7] "methods"   "base"     
+
+[[9]]
+[1] "jsonlite"  "stats"     "graphics"  "grDevices" "utils"     "datasets" 
+[7] "methods"   "base"     
+
+[[10]]
+[1] "jsonlite"  "stats"     "graphics"  "grDevices" "utils"     "datasets" 
+[7] "methods"   "base"     
+
+[[11]]
+[1] "jsonlite"  "stats"     "graphics"  "grDevices" "utils"     "datasets" 
+[7] "methods"   "base"     
+
+[[12]]
+[1] "jsonlite"  "stats"     "graphics"  "grDevices" "utils"     "datasets" 
+[7] "methods"   "base"     
+
+[[13]]
+[1] "jsonlite"  "stats"     "graphics"  "grDevices" "utils"     "datasets" 
+[7] "methods"   "base"     
+
+[[14]]
+[1] "jsonlite"  "stats"     "graphics"  "grDevices" "utils"     "datasets" 
+[7] "methods"   "base"     
+
+[[15]]
+[1] "jsonlite"  "stats"     "graphics"  "grDevices" "utils"     "datasets" 
+[7] "methods"   "base"     
+
+[[16]]
+[1] "jsonlite"  "stats"     "graphics"  "grDevices" "utils"     "datasets" 
+[7] "methods"   "base"     
+
+[[17]]
+[1] "jsonlite"  "stats"     "graphics"  "grDevices" "utils"     "datasets" 
+[7] "methods"   "base"     
+
+[[18]]
+[1] "jsonlite"  "stats"     "graphics"  "grDevices" "utils"     "datasets" 
+[7] "methods"   "base"     
+
+[[19]]
+[1] "jsonlite"  "stats"     "graphics"  "grDevices" "utils"     "datasets" 
+[7] "methods"   "base"     
+
+[[20]]
+[1] "jsonlite"  "stats"     "graphics"  "grDevices" "utils"     "datasets" 
+[7] "methods"   "base"     
+
+> clusterEvalQ(cl, source("R/00_helpers.R"))
+[[1]]
+[[1]]$value
+function (dat) 
+{
+    retval <- dat$Title
+    if (length(retval) == 0) {
+        retval <- NA_character_
+    }
+    retval
+}
+
+[[1]]$visible
+[1] FALSE
+
+
+[[2]]
+[[2]]$value
+function (dat) 
+{
+    retval <- dat$Title
+    if (length(retval) == 0) {
+        retval <- NA_character_
+    }
+    retval
+}
+
+[[2]]$visible
+[1] FALSE
+
+
+[[3]]
+[[3]]$value
+function (dat) 
+{
+    retval <- dat$Title
+    if (length(retval) == 0) {
+        retval <- NA_character_
+    }
+    retval
+}
+
+[[3]]$visible
+[1] FALSE
+
+
+[[4]]
+[[4]]$value
+function (dat) 
+{
+    retval <- dat$Title
+    if (length(retval) == 0) {
+        retval <- NA_character_
+    }
+    retval
+}
+
+[[4]]$visible
+[1] FALSE
+
+
+[[5]]
+[[5]]$value
+function (dat) 
+{
+    retval <- dat$Title
+    if (length(retval) == 0) {
+        retval <- NA_character_
+    }
+    retval
+}
+
+[[5]]$visible
+[1] FALSE
+
+
+[[6]]
+[[6]]$value
+function (dat) 
+{
+    retval <- dat$Title
+    if (length(retval) == 0) {
+        retval <- NA_character_
+    }
+    retval
+}
+
+[[6]]$visible
+[1] FALSE
+
+
+[[7]]
+[[7]]$value
+function (dat) 
+{
+    retval <- dat$Title
+    if (length(retval) == 0) {
+        retval <- NA_character_
+    }
+    retval
+}
+
+[[7]]$visible
+[1] FALSE
+
+
+[[8]]
+[[8]]$value
+function (dat) 
+{
+    retval <- dat$Title
+    if (length(retval) == 0) {
+        retval <- NA_character_
+    }
+    retval
+}
+
+[[8]]$visible
+[1] FALSE
+
+
+[[9]]
+[[9]]$value
+function (dat) 
+{
+    retval <- dat$Title
+    if (length(retval) == 0) {
+        retval <- NA_character_
+    }
+    retval
+}
+
+[[9]]$visible
+[1] FALSE
+
+
+[[10]]
+[[10]]$value
+function (dat) 
+{
+    retval <- dat$Title
+    if (length(retval) == 0) {
+        retval <- NA_character_
+    }
+    retval
+}
+
+[[10]]$visible
+[1] FALSE
+
+
+[[11]]
+[[11]]$value
+function (dat) 
+{
+    retval <- dat$Title
+    if (length(retval) == 0) {
+        retval <- NA_character_
+    }
+    retval
+}
+
+[[11]]$visible
+[1] FALSE
+
+
+[[12]]
+[[12]]$value
+function (dat) 
+{
+    retval <- dat$Title
+    if (length(retval) == 0) {
+        retval <- NA_character_
+    }
+    retval
+}
+
+[[12]]$visible
+[1] FALSE
+
+
+[[13]]
+[[13]]$value
+function (dat) 
+{
+    retval <- dat$Title
+    if (length(retval) == 0) {
+        retval <- NA_character_
+    }
+    retval
+}
+
+[[13]]$visible
+[1] FALSE
+
+
+[[14]]
+[[14]]$value
+function (dat) 
+{
+    retval <- dat$Title
+    if (length(retval) == 0) {
+        retval <- NA_character_
+    }
+    retval
+}
+
+[[14]]$visible
+[1] FALSE
+
+
+[[15]]
+[[15]]$value
+function (dat) 
+{
+    retval <- dat$Title
+    if (length(retval) == 0) {
+        retval <- NA_character_
+    }
+    retval
+}
+
+[[15]]$visible
+[1] FALSE
+
+
+[[16]]
+[[16]]$value
+function (dat) 
+{
+    retval <- dat$Title
+    if (length(retval) == 0) {
+        retval <- NA_character_
+    }
+    retval
+}
+
+[[16]]$visible
+[1] FALSE
+
+
+[[17]]
+[[17]]$value
+function (dat) 
+{
+    retval <- dat$Title
+    if (length(retval) == 0) {
+        retval <- NA_character_
+    }
+    retval
+}
+
+[[17]]$visible
+[1] FALSE
+
+
+[[18]]
+[[18]]$value
+function (dat) 
+{
+    retval <- dat$Title
+    if (length(retval) == 0) {
+        retval <- NA_character_
+    }
+    retval
+}
+
+[[18]]$visible
+[1] FALSE
+
+
+[[19]]
+[[19]]$value
+function (dat) 
+{
+    retval <- dat$Title
+    if (length(retval) == 0) {
+        retval <- NA_character_
+    }
+    retval
+}
+
+[[19]]$visible
+[1] FALSE
+
+
+[[20]]
+[[20]]$value
+function (dat) 
+{
+    retval <- dat$Title
+    if (length(retval) == 0) {
+        retval <- NA_character_
+    }
+    retval
+}
+
+[[20]]$visible
+[1] FALSE
+
+
+> 
+> Sys.time()
+[1] "2023-12-16 10:13:41 ACDT"
+> res <- parLapply(cl,
++                  X = infiles,
++                  fun = tidy_file,
++                  overwrite = FALSE,
++                  debug = FALSE)
+> Sys.time()
+[1] "2023-12-16 10:13:46 ACDT"
+> 
+> stopCluster(cl)
+> 
+> proc.time()
+   user  system elapsed 
+ 10.755   0.607  16.202 
