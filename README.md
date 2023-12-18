@@ -1,11 +1,9 @@
-# commons_tfs
+# senate_tfs
 
 This repository contains code to calculate the temporal focus of
-speeches in the United Kingdom House of Commons.
+speeches in the Australian Senate. It is a sister repository to commons_tfs[commons_tfs](https://github.com/chrishanretty/commons_tfs)
 
-The speeches come from the [ParlParse
-project](https://github.com/mysociety/parlparse/tree/master), which
-powers [TheyWorkForYou](https://theyworkforyou.com/). 
+The speeches come from the [parlinfo](https://parlinfo.aph.gov.au/parlInfo/search/search.w3p) website. 
 
 The code trains a distillBERT model on gold-standard human-coded sentences.
 
