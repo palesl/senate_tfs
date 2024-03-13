@@ -8,7 +8,7 @@ library(arrow)
 library(lubridate)
 
 
-here::i_am("R/08_aggregate_duckling.R")
+here::i_am("R/09_ausPH_link.R")
 
 
 # initial link attempt
@@ -38,7 +38,7 @@ unmatched_stats<-function(daily_speaker_by_heading){
 
 unmatched_stats(daily_speaker_by_heading)
 
-### simple cleaning.
+### simple cleaning
 
 
 # removing president (speaker)
@@ -304,7 +304,7 @@ assign_period_parl <- function(date, periods) {
   period_name <- NA
   for (i in 1:nrow(periods)) {
     if (date >= periods$DateElection[i] && date <= periods$ParliamentEnd[i]) {
-      period_name <- periods$Name[i]
+      period_name <- periods$PID[i]
       break
     }
   }
@@ -322,7 +322,6 @@ names(sen_indates)[1]<-'person'
 working_data<-working_data|>left_join(sen_indates)
 
 working_data$in_cohort
-
 
 
 # Age variable: speaker’s age measured in years
