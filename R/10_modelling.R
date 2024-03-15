@@ -57,6 +57,7 @@ model<-bam(Future ~
            data = future_focus)
 toc()
 
+saveRDS(model, file = here::here("working",
+                                 "senate_tfs_bam_model.rds"))
 
-plot(model, all.terms = T)
 
