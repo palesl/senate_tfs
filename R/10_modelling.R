@@ -17,7 +17,7 @@ analysis_data <- readRDS("outputs/analysis_data.rds")
 
 future_focus <- analysis_data|>
   select(person,Future,InGov,Party,yearsSince1972,month,day,
-         in_cohort,Age)|>
+         in_cohort,Age,nchars)|>
   na.omit()
 
 future_focus$InGov<-as.factor(as.numeric(future_focus$InGov))
@@ -27,6 +27,8 @@ future_focus$month<-as.factor(as.character(future_focus$month))
 future_focus$day<-as.factor(as.character(future_focus$day))
 
 future_focus$in_cohort<-as.factor(future_focus$in_cohort)
+
+future_focus$w8 <- future_focus$nchars / mean(future_focus$nchars)
 
 #debug
 
@@ -51,6 +53,7 @@ model<-bam(Future ~
              # age
              s(Age,bs="cr", k=30),
            nthreads=6,
+           weights = future_focus$w8,
            family=betar(link="logit"),
            knots=list(yearsSince1972=seq(0,47,length=20),
                       Age=seq(23,77,length=30)),

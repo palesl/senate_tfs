@@ -57,7 +57,7 @@ unmatched_stats(daily_speaker_by_heading)
 # looking into ids that are in the data but are noisy for example EXE in helloEXE
 
 unmatched<-unmatched_stats(daily_speaker_by_heading)
-
+unmatched$truePerson <- NA
 out_mat <- matrix(nrow = length(individuals$PHID),
                   ncol = length(unmatched$person))
 colnames(out_mat)<- unmatched$person
@@ -258,7 +258,7 @@ working_data$person
 # Political variables: party random effects and a dichotomous
 # variable with value one if the speaker’s party was in government
 
-partyService<-getPartyService()
+partyService <- getPartyService()
 partyService$DateEnd[is.na(partyService$DateEnd)]<-as.Date('2025-05-22')
 
 names(partyService)[1]<-'person'
