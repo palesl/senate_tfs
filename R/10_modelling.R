@@ -14,11 +14,17 @@ library(sjPlot)
 analysis_data <- readRDS("outputs/analysis_data.rds")
 
 # removing any NAs 
-
+# and any questions on notice
 future_focus <- analysis_data|>
-  select(person,Future,InGov,Party,yearsSince1972,month,day,
-         in_cohort,Age,nchars)|>
-  na.omit()
+    filter(!grepl("QUESTIONS ON NOTICE", oral_heading)) |>
+    select(person,Future,InGov,Party,
+           date,yearsSince1972,month,day,
+           in_cohort,Age,nchars)|>
+    na.omit() |>
+    group_by(person, InGov, Party, yearsSince1972, date,month, day,
+             in_cohort, Age) |>
+    summarize(Future = weighted.mean(Future, nchars),
+              nchars = sum(nchars))
 
 future_focus$InGov<-as.factor(as.numeric(future_focus$InGov))
 future_focus$Party<-as.factor(future_focus$Party)
@@ -47,16 +53,16 @@ model<-bam(Future ~
              # Political variables
              InGov + s(Party, bs="re") + 
              #period
-             s(yearsSince1972,bs="cr", k=20)+ day + month+
+             s(yearsSince1972,bs="cr", k=20) + day + month+
              #cohort
              s(in_cohort, bs="re")+
              # age
-             s(Age,bs="cr", k=30),
+             s(Age, bs="cr", k=30),
            nthreads=6,
            weights = future_focus$w8,
            family=betar(link="logit"),
-           knots=list(yearsSince1972=seq(0,47,length=20),
-                      Age=seq(23,77,length=30)),
+           ## knots=list(yearsSince1972=seq(0,47,length=20),
+           ##            Age=seq(23,77,length=30)),
            data = future_focus)
 toc()
 
