@@ -44,9 +44,9 @@ model<-bam(Future ~
              s(person, bs="re") + 
              # Political variables
              InGov + s(Party, bs="re") + 
-             #period
+             # period
              s(yearsSince1972,bs="cr", k=20)+ day + month+
-             #cohort
+             # cohort
              s(in_cohort, bs="re")+
              # age
              s(Age,bs="cr", k=30),
