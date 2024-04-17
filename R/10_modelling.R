@@ -29,7 +29,7 @@ future_focus <- analysis_data|>
          date,yearsSince1972,month,day,
          in_cohort,Age,nchars)|>
   na.omit() |>
-  group_by(person, InGov, Party, yearsSince1972, date,month, day,
+  group_by(person,DisplayName, InGov, Party, yearsSince1972, date,month, day,
            in_cohort, Age) |>
   summarize(Future = weighted.mean(Future, nchars),
             nchars = sum(nchars))
@@ -65,8 +65,6 @@ model<-bam(Future ~
              InGov + s(Party, bs="re") + 
              # period
              s(yearsSince1972,bs="cr", k=20)+ day + month+
-             #period
-             s(yearsSince1972,bs="cr", k=20) + day + month+
              #cohort
              s(in_cohort, bs="re")+
              # age
@@ -75,11 +73,14 @@ model<-bam(Future ~
            weights = future_focus$w8,
            family=betar(link="logit"),
            knots=list(yearsSince1972=seq(0,47,length=20),
-                      Age=seq(23,77,length=30)),
+                      Age=seq(15,85,length=30)),
            data = future_focus)
 toc()
-
+summary(model)
 plot(model)
+
+plot_model(model, type = 'pred', terms = 'Age')
+ 
 
 saveRDS(model, file = here::here("working",
                                  "senate_tfs_bam_model.rds"))
