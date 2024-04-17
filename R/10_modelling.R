@@ -13,18 +13,29 @@ library(sjPlot)
 
 analysis_data <- readRDS("outputs/analysis_data.rds")
 
+# filtering out documents read into the record
+analysis_data<-analysis_data|>
+  filter(!grepl("QUESTIONS ON NOTICE", oral_heading, ignore.case = T)) |>
+  filter(!grepl("ANSWERS TO QUESTIONS", oral_heading, ignore.case = T)) |>
+  filter(!grepl("COMMITTEES,Reports: Government Responses", oral_heading, ignore.case = T)) |>
+  group_by(oral_heading,DisplayName)|>
+  arrange(-nchars)
+
 # removing any NAs 
-# and any questions on notice
+# aggregating to words per person per day
+
 future_focus <- analysis_data|>
-    filter(!grepl("QUESTIONS ON NOTICE", oral_heading)) |>
-    select(person,Future,InGov,Party,
-           date,yearsSince1972,month,day,
-           in_cohort,Age,nchars)|>
-    na.omit() |>
-    group_by(person, InGov, Party, yearsSince1972, date,month, day,
-             in_cohort, Age) |>
-    summarize(Future = weighted.mean(Future, nchars),
-              nchars = sum(nchars))
+  select(person,Future,InGov,Party,
+         date,yearsSince1972,month,day,
+         in_cohort,Age,nchars)|>
+  na.omit() |>
+  group_by(person, InGov, Party, yearsSince1972, date,month, day,
+           in_cohort, Age) |>
+  summarize(Future = weighted.mean(Future, nchars),
+            nchars = sum(nchars))
+
+
+
 
 future_focus$InGov<-as.factor(as.numeric(future_focus$InGov))
 future_focus$Party<-as.factor(future_focus$Party)
@@ -52,25 +63,23 @@ model<-bam(Future ~
              s(person, bs="re") + 
              # Political variables
              InGov + s(Party, bs="re") + 
-<<<<<<< HEAD
              # period
              s(yearsSince1972,bs="cr", k=20)+ day + month+
-             # cohort
-=======
              #period
              s(yearsSince1972,bs="cr", k=20) + day + month+
              #cohort
->>>>>>> c2edabc25f8eb39998b349635a55d4451c07b574
              s(in_cohort, bs="re")+
              # age
              s(Age, bs="cr", k=30),
            nthreads=6,
            weights = future_focus$w8,
            family=betar(link="logit"),
-           ## knots=list(yearsSince1972=seq(0,47,length=20),
-           ##            Age=seq(23,77,length=30)),
+           knots=list(yearsSince1972=seq(0,47,length=20),
+                      Age=seq(23,77,length=30)),
            data = future_focus)
 toc()
+
+plot(model)
 
 saveRDS(model, file = here::here("working",
                                  "senate_tfs_bam_model.rds"))
