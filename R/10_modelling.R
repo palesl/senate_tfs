@@ -79,6 +79,8 @@ toc()
 summary(model)
 plot(model)
 
+weighted.mean(future_focus$Future ,future_focus$w8, na.rm = T)
+ 
 plot_model(model, type = 'pred', terms = 'Age')
  
 
