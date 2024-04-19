@@ -1,7 +1,7 @@
 
-R version 4.3.2 (2023-10-31) -- "Eye Holes"
+R version 4.3.1 (2023-06-16) -- "Beagle Scouts"
 Copyright (C) 2023 The R Foundation for Statistical Computing
-Platform: aarch64-apple-darwin20 (64-bit)
+Platform: x86_64-pc-linux-gnu (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -21,10 +21,10 @@ Type 'q()' to quit R.
 
 > library(tidyverse)
 ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
-✔ dplyr     1.1.4     ✔ readr     2.1.4
+✔ dplyr     1.1.4     ✔ readr     2.1.5
 ✔ forcats   1.0.0     ✔ stringr   1.5.1
-✔ ggplot2   3.4.4     ✔ tibble    3.2.1
-✔ lubridate 1.9.3     ✔ tidyr     1.3.0
+✔ ggplot2   3.5.0     ✔ tibble    3.2.1
+✔ lubridate 1.9.2     ✔ tidyr     1.3.0
 ✔ purrr     1.0.2     
 ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
 ✖ dplyr::filter() masks stats::filter()
@@ -55,7 +55,7 @@ Loading required package: iterators
 Loading required package: parallel
 > library(foreach)
 > here::i_am("R/07_aggregate.R")
-here() starts at /Users/pat/Library/CloudStorage/Dropbox/politicians temporal focus/Programming/senate_tfs
+here() starts at /mnt/003b6650-3320-4dbb-9c9e-ff84cfef882f/home/chris/Documents/senate_tfs
 > 
 > infiles <- list.files(here::here("working/distilled"),
 +                       full.names = TRUE)
@@ -67,6 +67,11 @@ here() starts at /Users/pat/Library/CloudStorage/Dropbox/politicians temporal fo
 +     ### Aggregate to speaker/topic/da
 +     retval <- read_parquet(i) |>
 +         mutate(date = the_date) |>
++         ### accounting for debates on 2007-09-19 which did not have an oral heading.
++         mutate(oral_heading = as.character(oral_heading),
++                oral_heading = case_when(is.na(oral_heading) ~ "_NA_Character_",
++                                         !is.na(oral_heading) ~ oral_heading)
++                ) |>
 +         mutate(person = as.character(person),
 +                nchars = nchar(newtext)) |>
 +         group_by(person, date,
@@ -286,42 +291,12 @@ here() starts at /Users/pat/Library/CloudStorage/Dropbox/politicians temporal fo
 [13] "graphics"  "grDevices" "utils"     "datasets"  "methods"   "base"     
 
 > Sys.time()
-[1] "2023-12-17 09:10:12 ACDT"
+[1] "2024-04-16 19:46:20 BST"
 > dat <- foreach(i=infiles,.combine = 'bind_rows') %dopar% {
 +     parse_file(i)
 + }
-error calling combine function:
-<error/vctrs_error_ptype2>
-Error in `fun()`:
-! Can't combine `..1$oral_heading` <character> and `..2$oral_heading` <double>.
----
-Backtrace:
-     ▆
-  1. └─foreach(i = infiles, .combine = "bind_rows") %dopar% ...
-  2.   └─e$fun(obj, substitute(ex), parent.frame(), e$data)
-  3.     ├─base::tryCatch(...)
-  4.     │ └─base (local) tryCatchList(expr, classes, parentenv, handlers)
-  5.     │   └─base (local) tryCatchOne(expr, names, parentenv, handlers[[1L]])
-  6.     │     └─base (local) doTryCatch(return(expr), name, parentenv, handler)
-  7.     └─foreach (local) accumulator(results, seq_along(results))
-  8.       ├─foreach::accumulate(it, results[[i]], tags[i])
-  9.       └─foreach:::accumulate.iforeach(it, results[[i]], tags[i])
- 10.         └─foreach:::callCombine(obj, status)
- 11.           └─base::eval(callobj, obj$state)
- 12.             └─base::eval(callobj, obj$state)
- 13.               └─dplyr (local) fun(accum, result.2493)
-> Sys.time()
-[1] "2023-12-17 09:10:43 ACDT"
-> 
-> stopCluster(cl)
-> 
-> dat$person <- factor(dat$person)
-> dat <- as.data.frame(dat)
-> 
-> saveRDS(dat, file = here::here("outputs", "daily_speaker_by_heading.rds"))
-Error in gzfile(file, mode) : cannot open the connection
-Calls: saveRDS -> gzfile
-In addition: Warning message:
-In gzfile(file, mode) :
-  cannot open compressed file '/Users/pat/Library/CloudStorage/Dropbox/politicians temporal focus/Programming/senate_tfs/outputs/daily_speaker_by_heading.rds', probable reason 'No such file or directory'
+Error in { : task 1 failed - "ℹ In argument: `nchars = nchar(newtext)`.
+Caused by error:
+! object 'newtext' not found"
+Calls: %dopar% -> <Anonymous>
 Execution halted

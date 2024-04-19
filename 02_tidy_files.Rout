@@ -1,7 +1,7 @@
 
-R version 4.3.2 (2023-10-31) -- "Eye Holes"
+R version 4.3.1 (2023-06-16) -- "Beagle Scouts"
 Copyright (C) 2023 The R Foundation for Statistical Computing
-Platform: aarch64-apple-darwin20 (64-bit)
+Platform: x86_64-pc-linux-gnu (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -17,8 +17,6 @@ Type 'demo()' for some demos, 'help()' for on-line help, or
 'help.start()' for an HTML browser interface to help.
 Type 'q()' to quit R.
 
-[Previously saved workspace restored]
-
 > ### PURPOSE OF THIS CODE: to take in the XML from the ParlParse
 > ### project, and turn this into R data frames which include
 > ### information on the speaker, the member, the date, the heading, and
@@ -27,10 +25,10 @@ Type 'q()' to quit R.
 > ### Load libraries
 > library(tidyverse)
 ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
-✔ dplyr     1.1.4     ✔ readr     2.1.4
+✔ dplyr     1.1.4     ✔ readr     2.1.5
 ✔ forcats   1.0.0     ✔ stringr   1.5.1
-✔ ggplot2   3.4.4     ✔ tibble    3.2.1
-✔ lubridate 1.9.3     ✔ tidyr     1.3.0
+✔ ggplot2   3.5.0     ✔ tibble    3.2.1
+✔ lubridate 1.9.2     ✔ tidyr     1.3.0
 ✔ purrr     1.0.2     
 ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
 ✖ dplyr::filter() masks stats::filter()
@@ -53,10 +51,6 @@ Loading required package: future
 
 Attaching package: ‘jsonlite’
 
-The following object is masked _by_ ‘.GlobalEnv’:
-
-    parse_json
-
 The following object is masked from ‘package:purrr’:
 
     flatten
@@ -65,7 +59,7 @@ The following object is masked from ‘package:purrr’:
 > num_cores_to_use <- 20
 > 
 > here::i_am("R/02_tidy_files.R")
-here() starts at /Users/pat/Library/CloudStorage/Dropbox/politicians temporal focus/Programming/senate_tfs
+here() starts at /mnt/003b6650-3320-4dbb-9c9e-ff84cfef882f/home/chris/Documents/senate_tfs
 > 
 > ### Get in helper functions
 > source(here::here("R", "00_helpers.R"), echo = FALSE)
@@ -582,17 +576,17 @@ function (dat)
 
 > 
 > Sys.time()
-[1] "2023-12-16 10:13:41 ACDT"
+[1] "2024-04-15 15:56:22 BST"
 > res <- parLapply(cl,
 +                  X = infiles,
 +                  fun = tidy_file,
 +                  overwrite = FALSE,
 +                  debug = FALSE)
 > Sys.time()
-[1] "2023-12-16 10:13:46 ACDT"
+[1] "2024-04-15 15:56:25 BST"
 > 
 > stopCluster(cl)
 > 
 > proc.time()
    user  system elapsed 
- 10.755   0.607  16.202 
+  1.357   0.154   5.377 

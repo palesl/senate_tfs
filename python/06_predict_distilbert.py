@@ -36,17 +36,17 @@ def list_of_lists2pd(l):
 def parse_file(file):
     df = pyreadr.read_r(file)[None]
     dataset = Dataset.from_pandas(df)
-    outfile = file.replace("ducked", "distilled")
+    outfile = file.replace("debates", "distilled")
     if os.path.isfile(outfile):
         return True
     batch_size = 12
-    res = [list_of_lists2pd(out) for out in classify(KeyDataset(dataset, "newtext"), batch_size = batch_size, truncation = True)]
+    res = [list_of_lists2pd(out) for out in classify(KeyDataset(dataset, "sents"), batch_size = batch_size, truncation = True)]
     res = pd.concat(res)
     df = df.reset_index(drop = True)
     res = res.reset_index(drop = True)
     out = pd.concat([df, res], axis = 1)
     out = out.reset_index(drop = True)
-    outfile = file.replace("ducked", "distilled")
+    outfile = file.replace("debates", "distilled")
     outfile = outfile.replace(".rds", ".parquet")
     out.to_parquet(outfile)
 
@@ -54,7 +54,7 @@ def parse_file(file):
 def list_full_paths(directory):
     return [os.path.join(directory, file) for file in os.listdir(directory)]
 
-foo = list_full_paths("working/ducked")
+foo = list_full_paths("working/debates")
 shuffle(foo)
 
 for f in foo:

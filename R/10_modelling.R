@@ -13,6 +13,7 @@ library(sjPlot)
 
 analysis_data <- readRDS("outputs/analysis_data.rds")
 
+<<<<<<< Updated upstream
 # filtering out documents read into the record
 analysis_data<-analysis_data|>
   filter(!grepl("QUESTIONS ON NOTICE", oral_heading, ignore.case = T)) |>
@@ -20,11 +21,20 @@ analysis_data<-analysis_data|>
   filter(!grepl("COMMITTEES,Reports: Government Responses", oral_heading, ignore.case = T)) |>
   group_by(oral_heading,DisplayName)|>
   arrange(-nchars)
+=======
+common_oral_headings <- analysis_data |>
+    dplyr::select(oral_heading) |>
+    mutate(oral_heading = fct_lump_n(tolower(oral_heading), 100)) |>
+    pull(oral_heading)
+
+table(common_oral_headings)
+>>>>>>> Stashed changes
 
 # removing any NAs 
 # aggregating to words per person per day
 
 future_focus <- analysis_data|>
+<<<<<<< Updated upstream
   select(person,Future,InGov,Party,
          date,yearsSince1972,month,day,
          in_cohort,Age,nchars)|>
@@ -36,7 +46,36 @@ future_focus <- analysis_data|>
 
 
 
+=======
+    filter(!grepl("QUESTIONS ON NOTICE", oral_heading, ignore.case = TRUE)) |>
+    filter(!grepl("^PETITIONS", oral_heading, ignore.case = TRUE)) |>
+    filter(!grepl("tabling of documents", oral_heading, ignore.case = TRUE)) |>
+    filter(!grepl("answers to questions,procedural text", oral_heading,
+                  ignore.case = TRUE)) |>
+    filter(!grepl("documents,tabling", oral_heading, ignore.case = TRUE)) |>
+    filter(!grepl("procedural text", oral_heading, ignore.case = TRUE)) |>
+    select(person,Future,InGov,Party,
+           date,yearsSince1972,month,day,
+           in_cohort,Age,nchars)|>
+    na.omit() |>
+    group_by(person, InGov, Party, yearsSince1972, date,month, day,
+             in_cohort, Age) |>
+    summarize(Future = weighted.mean(Future, nchars),
+              nchars = sum(nchars))
+>>>>>>> Stashed changes
 
+### Set parties only ever represented by one senator to "Other"
+party_counts <- future_focus |>
+    group_by(Party) |>
+    summarize(nuniq = length(unique(person)))
+singletons <- party_counts |>
+    filter(nuniq == 1) |>
+    pull(Party) |>
+    as.character()
+
+future_focus$Party2 <- as.character(future_focus$Party)
+future_focus$Party2[which(future_focus$Party2 %in% singletons)] <- "Other"
+future_focus$Party2 <- factor(future_focus$Party2)
 future_focus$InGov<-as.factor(as.numeric(future_focus$InGov))
 future_focus$Party<-as.factor(future_focus$Party)
 future_focus$person<-as.factor(future_focus$person)
@@ -47,6 +86,9 @@ future_focus$in_cohort<-as.factor(future_focus$in_cohort)
 
 future_focus$w8 <- future_focus$nchars / mean(future_focus$nchars)
 
+saveRDS(future_focus,
+        file = here::here("working",
+                          "senate_model_data.rds"))
 #debug
 
 debug=FALSE
@@ -62,9 +104,15 @@ model<-bam(Future ~
              # persistent individual effects
              s(person, bs="re") + 
              # Political variables
+<<<<<<< Updated upstream
              InGov + s(Party, bs="re") + 
              # period
              s(yearsSince1972,bs="cr", k=20)+ day + month+
+=======
+             InGov + s(Party2, bs="re") + 
+             #period
+             s(yearsSince1972,bs="cr", k=20) + day + month+
+>>>>>>> Stashed changes
              #cohort
              s(in_cohort, bs="re")+
              # age
@@ -88,3 +136,26 @@ saveRDS(model, file = here::here("working",
                                  "senate_tfs_bam_model.rds"))
 
 
+
+
+alt <- future_focus |>
+    filter(nchars < 100000) |>
+    mutate(w8 = nchars / mean(nchars))
+
+alt_model<-bam(Future ~  
+             # persistent individual effects
+             s(person, bs="re") + 
+             # Political variables
+             InGov + s(Party2, bs="re") + 
+             #period
+             s(yearsSince1972,bs="cr", k=20) + day + month+
+             #cohort
+             s(in_cohort, bs="re")+
+             # age
+             s(Age, bs="cr", k=30),
+           nthreads=6,
+           weights = alt$w8,
+           family=betar(link="logit"),
+           ## knots=list(yearsSince1972=seq(0,47,length=20),
+           ##            Age=seq(23,77,length=30)),
+           data = alt)
