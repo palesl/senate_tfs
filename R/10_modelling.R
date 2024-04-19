@@ -13,41 +13,17 @@ library(sjPlot)
 
 analysis_data <- readRDS("outputs/analysis_data.rds")
 
-<<<<<<< Updated upstream
-# filtering out documents read into the record
-analysis_data<-analysis_data|>
-  filter(!grepl("QUESTIONS ON NOTICE", oral_heading, ignore.case = T)) |>
-  filter(!grepl("ANSWERS TO QUESTIONS", oral_heading, ignore.case = T)) |>
-  filter(!grepl("COMMITTEES,Reports: Government Responses", oral_heading, ignore.case = T)) |>
-  group_by(oral_heading,DisplayName)|>
-  arrange(-nchars)
-=======
 common_oral_headings <- analysis_data |>
     dplyr::select(oral_heading) |>
     mutate(oral_heading = fct_lump_n(tolower(oral_heading), 100)) |>
     pull(oral_heading)
 
 table(common_oral_headings)
->>>>>>> Stashed changes
 
-# removing any NAs 
-# aggregating to words per person per day
-
-future_focus <- analysis_data|>
-<<<<<<< Updated upstream
-  select(person,Future,InGov,Party,
-         date,yearsSince1972,month,day,
-         in_cohort,Age,nchars)|>
-  na.omit() |>
-  group_by(person,DisplayName, InGov, Party, yearsSince1972, date,month, day,
-           in_cohort, Age) |>
-  summarize(Future = weighted.mean(Future, nchars),
-            nchars = sum(nchars))
-
-
-
-=======
+future_focus <- analysis_data |> 
     filter(!grepl("QUESTIONS ON NOTICE", oral_heading, ignore.case = TRUE)) |>
+    filter(!grepl("ANSWERS TO QUESTIONS", oral_heading, ignore.case = T)) |>
+    filter(!grepl("COMMITTEES,Reports: Government Responses", oral_heading, ignore.case = T)) |>
     filter(!grepl("^PETITIONS", oral_heading, ignore.case = TRUE)) |>
     filter(!grepl("tabling of documents", oral_heading, ignore.case = TRUE)) |>
     filter(!grepl("answers to questions,procedural text", oral_heading,
@@ -62,7 +38,7 @@ future_focus <- analysis_data|>
              in_cohort, Age) |>
     summarize(Future = weighted.mean(Future, nchars),
               nchars = sum(nchars))
->>>>>>> Stashed changes
+
 
 ### Set parties only ever represented by one senator to "Other"
 party_counts <- future_focus |>
@@ -104,15 +80,9 @@ model<-bam(Future ~
              # persistent individual effects
              s(person, bs="re") + 
              # Political variables
-<<<<<<< Updated upstream
-             InGov + s(Party, bs="re") + 
-             # period
-             s(yearsSince1972,bs="cr", k=20)+ day + month+
-=======
              InGov + s(Party2, bs="re") + 
              #period
              s(yearsSince1972,bs="cr", k=20) + day + month+
->>>>>>> Stashed changes
              #cohort
              s(in_cohort, bs="re")+
              # age

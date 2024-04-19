@@ -15,7 +15,7 @@ mod <- readRDS(model_file)
 
 sm <- smooth_estimates(mod, smooth = "s(Age)") 
 
-saveRDS(sm, file = here::here("outputs", "age_smooth_plot_data.rds"))
+saveRDS(sm, file = here::here("outputs", "aus_age_smooth_plot_data.rds"))
 
 ### If you want to see it
 ggplot(sm, aes(x = Age,
