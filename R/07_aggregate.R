@@ -8,7 +8,7 @@ infiles <- list.files(here::here("working/distilled"),
                       full.names = TRUE)
 
 parse_file <- function(i) {
-    the_date <- sub(".*debates", "", i)
+    the_date <- sub(".*distilled", "", i)
     the_date <- gsub("[^0-9]", "", the_date)
     the_date <- as.Date(the_date, format = "%Y%m%d")
     ### Aggregate to speaker/topic/da
@@ -20,7 +20,7 @@ parse_file <- function(i) {
                                         !is.na(oral_heading) ~ oral_heading)
                ) |>
         mutate(person = as.character(person),
-               nchars = nchar(newtext)) |>
+               nchars = nchar(sents)) |>
         group_by(person, date,
                  oral_heading) |>
         summarize(Present = weighted.mean(Present, nchars, na.rm = TRUE),
